@@ -9,7 +9,11 @@ module.exports = class BaseModel {
   constructor(name, schema) {
     if (!name) throw new Error('You must provide a name in constructor of BaseModel');
     if (!schema) throw new Error('You must provide a schema in constructor of BaseModel');
-    this.schema = Joi.object().keys(Object.assign({}, schema, { id: Joi.number().required() }));
+    this.schema = Joi.object()
+      .keys(Object.assign({}, schema, {
+        id: Joi.number()
+          .required()
+      }));
     this.items = [];
     this.name = name;
     this.filePath = `${__dirname}/../../mocks/${this.name.toLowerCase()}.mocks.json`;
@@ -32,33 +36,52 @@ module.exports = class BaseModel {
     }
   }
 
-  get() {
-    return this.items;
+  get(students) {
+    var tickets = this.items;
+    if (this.name === 'Ticket') {
+      //logger.info(students);
+      var i = 0;
+
+      while (tickets[i]) {
+        //logger.info(tickets[i]);
+        this.attachStudent(tickets[i],students);
+        i++;
+      }
+    }
+    return tickets;
   }
 
-  getById(id) {
+  getById(id,students) {
     if (typeof id === 'string') id = parseInt(id, 10);
     const item = this.items.find(i => i.id === id);
     if (!item) throw new NotFoundError(`Cannot get ${this.name} id=${id} : not found`);
+    this.attachStudent(item,students)
     return item;
   }
 
-  create(obj = {}) {
+  create(obj = {}, students) {
     const item = Object.assign({}, obj, { id: Date.now() });
     const { error } = Joi.validate(item, this.schema);
     if (error) throw new ValidationError(`Create Error : Object ${JSON.stringify(obj)} does not match schema of model ${this.name}`, error);
+    //modif
+    this.attachStudent(item, students);
+
     this.items.push(item);
     this.save();
     return item;
   }
 
-  update(id, obj) {
+  update(id, obj, students) {
     if (typeof id === 'string') id = parseInt(id, 10);
+    //logger.info(id.toString());
     const prevObjIndex = this.items.findIndex(item => item.id === id);
     if (prevObjIndex === -1) throw new NotFoundError(`Cannot update ${this.name} id=${id} : not found`);
     const updatedItem = Object.assign({}, this.items[prevObjIndex], obj);
     const { error } = Joi.validate(updatedItem, this.schema);
     if (error) throw new ValidationError(`Update Error : Object ${JSON.stringify(obj)} does not match schema of model ${this.name}`, error);
+    //modif
+    this.attachStudent(updatedItem, students);
+
     this.items[prevObjIndex] = updatedItem;
     this.save();
     return updatedItem;
@@ -70,5 +93,16 @@ module.exports = class BaseModel {
     if (objIndex === -1) throw new NotFoundError(`Cannot delete ${this.name} id=${id} : not found`);
     this.items = this.items.filter(item => item.id !== id);
     this.save();
+  }
+
+  attachStudent(ticket,students) {
+    logger.info(students);
+    const index = students.findIndex(item => item.id === ticket.studentId);
+    logger.info(index);
+    if (index != -1){
+      ticket.student = students[index];
+    }
+
+    //logger.info(this.items);
   }
 };
